@@ -1,5 +1,3 @@
-// src/managers/CartManager.js
-
 const fs = require('fs/promises');
 const path = require('path');
 
@@ -7,13 +5,10 @@ class CartManager {
     constructor(fileName, productManager) {
         this.path = path.join(process.cwd(), fileName);
         this.carts = [];
-        this.productManager = productManager; // Necesitamos el ProductManager
+        this.productManager = productManager; 
         this.initializeFile();
     }
 
-    /**
-     * Asegura que el archivo de carritos exista.
-     */
     async initializeFile() {
         try {
             await fs.access(this.path);
@@ -22,9 +17,6 @@ class CartManager {
         }
     }
 
-    /**
-     * Lee el archivo y parsea su contenido.
-     */
     async #readCarts() {
         try {
             const data = await fs.readFile(this.path, 'utf-8');
@@ -36,9 +28,6 @@ class CartManager {
         }
     }
 
-    /**
-     * Escribe el array actual de carritos en el archivo.
-     */
     async #saveCarts() {
         try {
             await fs.writeFile(this.path, JSON.stringify(this.carts, null, 2), 'utf-8');
@@ -47,9 +36,6 @@ class CartManager {
         }
     }
 
-    /**
-     * Genera un ID alfanumérico único para el carrito.
-     */
     #generateId() {
         const timestamp = Date.now().toString(36);
         const random = Math.random().toString(36).substring(2, 7);
@@ -61,14 +47,14 @@ class CartManager {
     /**
      * POST /api/carts/
      * Crea un nuevo carrito.
-     * @returns {Promise<Object>} El nuevo carrito.
+     * @returns {Promise<Object>} 
      */
     async createCart() {
         await this.#readCarts();
         
         const newCart = {
-            id: this.#generateId(), // Autogenerado
-            products: [] // Array de productos inicializado vacío
+            id: this.#generateId(), 
+            products: [] 
         };
 
         this.carts.push(newCart);
@@ -79,14 +65,14 @@ class CartManager {
     /**
      * GET /api/carts/:cid
      * Lista los productos de un carrito.
-     * @param {string} cartId - ID del carrito.
-     * @returns {Promise<Array|null>} El array de productos del carrito o null si no existe.
+     * @param {string} cartId -
+     * @returns {Promise<Array|null>} 
      */
     async getCartById(cartId) {
         await this.#readCarts();
         const cart = this.carts.find(c => c.id === cartId);
         
-        // El requerimiento pide listar los productos, así que devolvemos el array 'products'
+        
         return cart ? cart.products : null;
     }
 
@@ -105,7 +91,6 @@ class CartManager {
             return null; // Carrito no encontrado
         }
 
-        // 1. Verificar si el producto existe usando ProductManager
         const productExists = await this.productManager.getProductById(productId);
         if (!productExists) {
             throw new Error(`Producto con ID ${productId} no existe.`);
@@ -115,10 +100,8 @@ class CartManager {
         const productInCartIndex = cart.products.findIndex(item => item.product === productId);
 
         if (productInCartIndex > -1) {
-            // 2. El producto ya existe: incrementar quantity
             cart.products[productInCartIndex].quantity += 1;
         } else {
-            // 3. El producto es nuevo: agregarlo con quantity: 1
             cart.products.push({
                 product: productId, // Solo el ID del producto
                 quantity: 1         // Se agrega de uno en uno
