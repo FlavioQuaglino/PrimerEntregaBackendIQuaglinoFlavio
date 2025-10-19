@@ -1,0 +1,11 @@
+<h2>Lista de Productos (Vista Estática)</h2>
+
+{{#if products}}
+    <ul class="product-list">
+        {{#each products}}
+            <li>{{this.title}} - Precio: ${{this.price}} (ID: {{this.id}})</li>
+        {{/each}}
+    </ul>
+{{else}}
+    <p>No hay productos cargados en la base de datos.</p>
+{{/if}}
