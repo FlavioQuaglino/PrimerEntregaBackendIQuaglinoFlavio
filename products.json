@@ -1,13 +1,35 @@
 [
   {
-    "id": "p-mgyaw7o7-obdwa",
-    "title": "dddddddd",
-    "description": "Descripción genérica",
-    "code": "ABC1234",
-    "price": 333,
+    "id": "p-mh14qugr-p30so",
+    "title": "zanahoria",
+    "description": "Producto añadido por Socket",
+    "code": "WS-1761085347002-140",
+    "price": 5000,
     "status": true,
     "stock": 10,
-    "category": "General",
+    "category": "Websockets",
+    "thumbnails": []
+  },
+  {
+    "id": "p-mh14r3ky-ggipo",
+    "title": "ALBAHACA",
+    "description": "Producto añadido por Socket",
+    "code": "WS-1761085358818-88",
+    "price": 300,
+    "status": true,
+    "stock": 10,
+    "category": "Websockets",
+    "thumbnails": []
+  },
+  {
+    "id": "p-mh14ra6s-u6qgx",
+    "title": "TOMATE",
+    "description": "Producto añadido por Socket",
+    "code": "WS-1761085367378-369",
+    "price": 1000,
+    "status": true,
+    "stock": 10,
+    "category": "Websockets",
     "thumbnails": []
   }
 ]

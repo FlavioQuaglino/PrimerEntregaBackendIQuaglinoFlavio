@@ -46,7 +46,6 @@ class CartManager {
 
     /**
      * POST /api/carts/
-     * Crea un nuevo carrito.
      * @returns {Promise<Object>} 
      */
     async createCart() {
@@ -64,7 +63,6 @@ class CartManager {
 
     /**
      * GET /api/carts/:cid
-     * Lista los productos de un carrito.
      * @param {string} cartId -
      * @returns {Promise<Array|null>} 
      */
@@ -77,18 +75,17 @@ class CartManager {
     }
 
     /**
-     * POST /api/carts/:cid/product/:pid
-     * Agrega un producto a un carrito o incrementa su cantidad.
-     * @param {string} cartId - ID del carrito.
-     * @param {string} productId - ID del producto.
-     * @returns {Promise<Object|null|Error>} El carrito actualizado o null/Error.
+     * POST /api/carts/:cid/product/:pi
+     * @param {string} cartId 
+     * @param {string} productId 
+     * @returns {Promise<Object|null|Error>} 
      */
     async addProductToCart(cartId, productId) {
         await this.#readCarts();
         const cartIndex = this.carts.findIndex(c => c.id === cartId);
         
         if (cartIndex === -1) {
-            return null; // Carrito no encontrado
+            return null; 
         }
 
         const productExists = await this.productManager.getProductById(productId);
@@ -103,8 +100,8 @@ class CartManager {
             cart.products[productInCartIndex].quantity += 1;
         } else {
             cart.products.push({
-                product: productId, // Solo el ID del producto
-                quantity: 1         // Se agrega de uno en uno
+                product: productId, 
+                quantity: 1         
             });
         }
 

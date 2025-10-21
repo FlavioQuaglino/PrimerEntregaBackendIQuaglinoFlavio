@@ -4,7 +4,7 @@ const path = require('path');
 class ProductManager {
     constructor(fileName) {
         this.path = path.join(process.cwd(), fileName);
-        this.products = []; // Inicializado como array
+        this.products = []; 
         this.initializeFile();
     }
 
@@ -28,9 +28,8 @@ class ProductManager {
             this.products = JSON.parse(data);
             return this.products;
         } catch (error) {
-            // Si hay error (ej: archivo mal formateado o JSON inválido), aseguramos un array vacío.
             console.error('Error al leer o parsear productos:', error.message);
-            this.products = []; // <-- ¡CORRECCIÓN! Aseguramos que sea un array
+            this.products = []; 
             return []; 
         }
     }
@@ -70,7 +69,7 @@ class ProductManager {
         if (this.products.some(p => p.code === code)) {
             throw new Error(`Ya existe un producto con el código ${code}.`);
         }
-        // ... [Resto del código de addProduct] ...
+        
         
         const newProduct = {
             id: this.#generateId(),

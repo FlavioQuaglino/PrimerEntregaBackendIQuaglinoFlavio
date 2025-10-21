@@ -39,7 +39,6 @@ router.post('/:cid/product/:pid', asyncHandler(async (req, res) => {
         
         res.json({ message: 'Producto agregado/incrementado en el carrito', cart: updatedCart });
     } catch (error) {
-        // Captura errores como 'Producto no existe'
         res.status(404).json({ error: error.message });
     }
 }));
