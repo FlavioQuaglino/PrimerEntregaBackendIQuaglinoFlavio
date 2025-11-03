@@ -7,6 +7,11 @@ const productManager = new ProductManager();
 const cartManager = new CartManager();
 const router = Router();
 
+// ID de carrito fijo para la demo (debes asegurarte de que este ID exista en tu MongoDB)
+// Si no quieres crear un carrito manualmente, puedes poner '69092369c5a306f1d13ffac1'
+// si usaste el ID que se vio en la captura de pantalla anterior.
+const DEMO_CART_ID = '69092369c5a306f1d13ffac1'; // ⬅️ Usamos un ID de ejemplo
+
 // ===============================================
 // GET / - Vista Home (Paginada)
 // ===============================================
@@ -62,6 +67,7 @@ router.get('/', async (req, res) => {
         const context = {
             products: docs,
             title: 'Lista de Productos (Paginada)',
+            activeCartId: DEMO_CART_ID, // ⬅️ AGREGADO: ID del carrito activo para el frontend
             // Datos de paginación para Handlebars
             currentPage,
             totalPages,

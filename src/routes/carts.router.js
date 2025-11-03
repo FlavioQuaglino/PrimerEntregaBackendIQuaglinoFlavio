@@ -47,9 +47,9 @@ router.get('/:cid', asyncHandler(async (req, res) => {
 
 
 // ===============================================
-// POST /api/carts/:cid/product/:pid - Agregar/Incrementar Producto
+// POST /api/carts/:cid/products/:pid - Agregar/Incrementar Producto
 // ===============================================
-router.post('/:cid/product/:pid', asyncHandler(async (req, res) => {
+router.post('/:cid/products/:pid', asyncHandler(async (req, res) => {
     const { cid, pid } = req.params;
     
     try {

@@ -11,7 +11,7 @@ const asyncHandler = fn => (req, res, next) => {
 };
 
 // ===============================================
-// GET /api/products - CON PAGINACIÓN Y FILTROS
+// GET /api/products - CON PAGINACIÓN Y FILTROS (CORREGIDO)
 // ===============================================
 router.get('/', asyncHandler(async (req, res) => {
     const { 
@@ -57,6 +57,7 @@ router.get('/', asyncHandler(async (req, res) => {
         // El Manager debe actualizar su método getProducts para aceptar criteria y options
         const productsData = await productManager.getProducts(criteria, options);
 
+        // Desestructuramos para obtener las propiedades necesarias
         const { docs, totalPages, prevPage, nextPage, hasPrevPage, hasNextPage, page: currentPage } = productsData;
         
         // Generación de los links (URI)
@@ -70,10 +71,10 @@ router.get('/', asyncHandler(async (req, res) => {
 
         const response = {
             status: 'success',
-            payload: docs,
+            payload: docs, // <--- ASEGURAMOS QUE LOS PRODUCTOS VAYAN EN EL PAYLOAD
             totalPages,
-            prevPage,
-            nextPage,
+            prevPage, // Agregado para mayor detalle
+            nextPage, // Agregado para mayor detalle
             page: currentPage,
             hasPrevPage,
             hasNextPage,

@@ -1,30 +1,37 @@
-import ProductModel from '../models/Product.model.js'; // Importamos el modelo de Mongoose
+import ProductModel from '../models/Product.model.js'; 
 
 /**
  * Manager diseñado para interactuar ÚNICAMENTE con la persistencia (MongoDB/Mongoose).
- * Toda la lógica de negocio (validaciones complejas, formateo) debe ir en el Router/Controller.
  */
 class ProductManager {
     constructor() {
         console.log("🛠️ ProductManager inicializado con persistencia en MongoDB.");
-        // Ya no necesitamos un constructor que reciba 'fileName' ni inicializar archivos.
     }
 
     /**
-     * Obtiene todos los productos de la base de datos.
-     * En este punto, no incluye la lógica de paginación o filtros, la cual irá
-     * directamente en el router/controller.
-     * @returns {Promise<Array>} Lista de productos.
+     * Obtiene productos con paginación, filtros y ordenamiento.
+     * @param {Object} criteria - Objeto de criterios de filtrado (e.g., { category: 'Libros' }).
+     * @param {Object} options - Opciones de paginación y ordenamiento (limit, page, sort).
+     * @returns {Promise<Object>} Objeto con datos de paginación (docs, totalPages, page, etc.).
      */
-    async getProducts() {
+    async getProducts(criteria = {}, options = {}) {
         try {
-            // Mongoose: Usa .find({}) para obtener todos los documentos
-            const products = await ProductModel.find({}).lean(); 
-            return products;
+            // 1. Configurar opciones finales para paginate
+            const finalOptions = {
+                ...options,
+                lean: true // Fundamental para obtener objetos JS planos más rápidos
+            };
+
+            // 2. Ejecutar la paginación de Mongoose
+            // ProductModel.paginate(criteria, finalOptions) devuelve el objeto completo
+            const productsData = await ProductModel.paginate(criteria, finalOptions);
+            
+            // Este objeto ya contiene: { docs, totalPages, page, hasPrevPage, hasNextPage, etc. }
+            return productsData;
+            
         } catch (error) {
-            console.error("Error al obtener productos de MongoDB:", error.message);
-            // Propagamos el error para que sea manejado en el router
-            throw new Error('Error de persistencia al obtener productos.');
+            console.error('Error al obtener productos paginados:', error.message);
+            throw new Error('No se pudieron obtener los productos de la base de datos.');
         }
     }
 
@@ -35,13 +42,12 @@ class ProductManager {
      */
     async getProductById(id) {
         try {
-            // Mongoose: Usa .findById(id) para obtener un documento por su ID
             const product = await ProductModel.findById(id).lean();
-            return product; // Mongoose devuelve null si no lo encuentra
+            return product;
         } catch (error) {
             console.error("Error al obtener producto por ID:", error.message);
-            // Si el ID tiene un formato incorrecto (ej. no es un ObjectId), Mongoose lanza un error.
-            return null; 
+            // Si el error es CastError, el router lo manejará. Aquí solo devolvemos nulo o lanzamos la excepción.
+            throw error; 
         }
     }
 
@@ -51,7 +57,7 @@ class ProductManager {
      * @returns {Promise<Object>} El nuevo producto creado.
      */
     async addProduct(productData) {
-        // Validación de campos obligatorios (se mantiene aquí por simplicidad, aunque idealmente iría en el router)
+        // La validación de campos obligatorios DEBERÍA estar en el esquema, pero se mantiene aquí temporalmente
         const { title, description, code, price, stock, category } = productData;
         if (!title || !description || !code || !price || !stock || !category) {
             throw new Error("Todos los campos obligatorios deben estar presentes.");
@@ -66,10 +72,10 @@ class ProductManager {
 
             // 2. Crear el producto en MongoDB
             const newProduct = await ProductModel.create(productData);
-            return newProduct.toObject(); // Devuelve el objeto plano para usarlo
+            return newProduct.toObject();
         } catch (error) {
-            // Si es un error de validación de Mongoose o de unicidad, lo lanzamos.
-            if (error.name === 'ValidationError' || error.message.includes('código')) {
+            // Si es un error de validación de Mongoose, lo lanzamos para que el router lo capture.
+            if (error.name === 'ValidationError') {
                  throw error;
             }
             console.error("Error al crear producto en MongoDB:", error.message);
@@ -85,8 +91,6 @@ class ProductManager {
      */
     async updateProduct(id, newFields) {
         try {
-            // Usamos findByIdAndUpdate con { new: true } para obtener el documento actualizado
-            // runValidators: true asegura que las validaciones del esquema se ejecuten al actualizar
             const updatedProduct = await ProductModel.findByIdAndUpdate(
                 id, 
                 { $set: newFields }, 
@@ -96,7 +100,6 @@ class ProductManager {
             return updatedProduct;
         } catch (error) {
             console.error("Error al actualizar producto:", error.message);
-            // Captura errores de validación (ej. precio negativo)
             if (error.name === 'ValidationError') {
                 throw new Error(`Error de validación al actualizar: ${error.message}`);
             }
@@ -111,9 +114,7 @@ class ProductManager {
      */
     async deleteProduct(id) {
         try {
-            // Mongoose: findByIdAndDelete devuelve el documento eliminado o null
             const result = await ProductModel.findByIdAndDelete(id);
-            
             return result !== null;
         } catch (error) {
             console.error("Error al eliminar producto:", error.message);
@@ -123,5 +124,3 @@ class ProductManager {
 }
 
 export default ProductManager;
-
-module.exports = ProductManager;
