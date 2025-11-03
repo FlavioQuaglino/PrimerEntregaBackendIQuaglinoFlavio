@@ -19,9 +19,7 @@ const connectDB = async () => {
     
     try {
         await mongoose.connect(MONGODB_URI, {
-            // Opciones recomendadas por Mongoose, aunque en versiones recientes ya son el default
-            // useNewUrlParser: true, 
-            // useUnifiedTopology: true,
+            // useNewUrlParser y useUnifiedTopology ya no son necesarios
         });
         console.log('🟢 MongoDB conectado exitosamente.');
     } catch (error) {
