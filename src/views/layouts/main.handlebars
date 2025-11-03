@@ -4,20 +4,29 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{title}}</title>
-    </head>
+    <!-- ¡IMPORTANTE! Agregamos Tailwind CSS para el estilo de las vistas -->
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
 <body>
-    <header>
-        <h1>Mi Tienda Backend - Entrega 2</h1>
-        <nav>
-            <a href="/">Home</a> | 
-            <a href="/realtimeproducts">Real Time Products</a>
-        </nav>
-        <hr>
+    <header class="bg-indigo-600 text-white p-4 shadow-lg">
+        <div class="max-w-4xl mx-auto flex justify-between items-center">
+            <h1 class="text-2xl font-bold">Mi Tienda Backend - Entrega Final</h1>
+            <nav>
+                <a href="/" class="hover:text-indigo-200 transition duration-150 font-medium">Home</a> 
+                <span class="mx-2 text-indigo-200">|</span>
+                <a href="/realtimeproducts" class="hover:text-indigo-200 transition duration-150 font-medium">Real Time Products</a>
+                <!-- Opcional: Agregar un enlace al carrito si se usa un ID fijo, por ejemplo, 'c1' -->
+                <span class="mx-2 text-indigo-200">|</span>
+                <a href="/carts/c1" class="hover:text-indigo-200 transition duration-150 font-medium">🛒 Carrito Demo</a>
+            </nav>
+        </div>
     </header>
 
-    {{{body}}} 
+    <main class="min-h-screen p-4">
+        {{{body}}} 
+    </main>
 
-    <footer>
+    <footer class="text-center p-4 mt-8 border-t bg-gray-50 text-gray-600">
         <p>&copy; Coderhouse Backend</p>
     </footer>
 </body>

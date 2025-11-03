@@ -1,130 +1,127 @@
-const fs = require('fs/promises');
-const path = require('path');
+import ProductModel from '../models/Product.model.js'; // Importamos el modelo de Mongoose
 
+/**
+ * Manager diseñado para interactuar ÚNICAMENTE con la persistencia (MongoDB/Mongoose).
+ * Toda la lógica de negocio (validaciones complejas, formateo) debe ir en el Router/Controller.
+ */
 class ProductManager {
-    constructor(fileName) {
-        this.path = path.join(process.cwd(), fileName);
-        this.products = []; 
-        this.initializeFile();
+    constructor() {
+        console.log("🛠️ ProductManager inicializado con persistencia en MongoDB.");
+        // Ya no necesitamos un constructor que reciba 'fileName' ni inicializar archivos.
     }
 
-    async initializeFile() {
-        try {
-            await fs.access(this.path);
-        } catch (error) {
-            await fs.writeFile(this.path, '[]', 'utf-8');
-        }
-    }
-
-    async #readProducts() {
-        try {
-            const data = await fs.readFile(this.path, 'utf-8');
-            
-            if (!data.trim()) { 
-                this.products = [];
-                return this.products;
-            }
-            
-            this.products = JSON.parse(data);
-            return this.products;
-        } catch (error) {
-            console.error('Error al leer o parsear productos:', error.message);
-            this.products = []; 
-            return []; 
-        }
-    }
-    
-    async #saveProducts() {
-        try {
-            await fs.writeFile(this.path, JSON.stringify(this.products, null, 2), 'utf-8');
-        } catch (error) {
-            console.error('Error al guardar productos:', error.message);
-        }
-    }
-
-    #generateId() {
-        const timestamp = Date.now().toString(36);
-        const random = Math.random().toString(36).substring(2, 7);
-        return `p-${timestamp}-${random}`;
-    }
+    /**
+     * Obtiene todos los productos de la base de datos.
+     * En este punto, no incluye la lógica de paginación o filtros, la cual irá
+     * directamente en el router/controller.
+     * @returns {Promise<Array>} Lista de productos.
+     */
     async getProducts() {
-        return this.#readProducts();
+        try {
+            // Mongoose: Usa .find({}) para obtener todos los documentos
+            const products = await ProductModel.find({}).lean(); 
+            return products;
+        } catch (error) {
+            console.error("Error al obtener productos de MongoDB:", error.message);
+            // Propagamos el error para que sea manejado en el router
+            throw new Error('Error de persistencia al obtener productos.');
+        }
     }
 
+    /**
+     * Obtiene un producto por su ID.
+     * @param {string} id - El ID de MongoDB del producto.
+     * @returns {Promise<Object|null>} El producto encontrado o null.
+     */
     async getProductById(id) {
-        await this.#readProducts();
-        const product = this.products.find(p => p.id === id);
-        return product || null;
+        try {
+            // Mongoose: Usa .findById(id) para obtener un documento por su ID
+            const product = await ProductModel.findById(id).lean();
+            return product; // Mongoose devuelve null si no lo encuentra
+        } catch (error) {
+            console.error("Error al obtener producto por ID:", error.message);
+            // Si el ID tiene un formato incorrecto (ej. no es un ObjectId), Mongoose lanza un error.
+            return null; 
+        }
     }
 
+    /**
+     * Agrega un nuevo producto a la base de datos.
+     * @param {Object} productData - Datos del producto.
+     * @returns {Promise<Object>} El nuevo producto creado.
+     */
     async addProduct(productData) {
-        await this.#readProducts(); 
-
-        const { title, description, code, price, stock, category, thumbnails = [] } = productData;
-
+        // Validación de campos obligatorios (se mantiene aquí por simplicidad, aunque idealmente iría en el router)
+        const { title, description, code, price, stock, category } = productData;
         if (!title || !description || !code || !price || !stock || !category) {
             throw new Error("Todos los campos obligatorios deben estar presentes.");
         }
-        
-        if (this.products.some(p => p.code === code)) {
-            throw new Error(`Ya existe un producto con el código ${code}.`);
-        }
-        
-        
-        const newProduct = {
-            id: this.#generateId(),
-            title,
-            description,
-            code,
-            price: Number(price),
-            status: true,
-            stock: Number(stock),
-            category,
-            thumbnails: Array.isArray(thumbnails) ? thumbnails : [thumbnails],
-        };
 
-        this.products.push(newProduct);
-        await this.#saveProducts();
-        return newProduct;
-    }
-
-    async updateProduct(id, newFields) {
-        await this.#readProducts();
-        const index = this.products.findIndex(p => p.id === id);
-
-        if (index === -1) {
-            return null;
-        }
-
-        const updatedProduct = { ...this.products[index] };
-
-        for (const key in newFields) {
-            if (key !== 'id') { 
-                if (key === 'price') updatedProduct.price = Number(newFields[key]);
-                else if (key === 'stock') updatedProduct.stock = Number(newFields[key]);
-                else if (key === 'status') updatedProduct.status = Boolean(newFields[key]);
-                else updatedProduct[key] = newFields[key];
+        try {
+            // 1. Verificar unicidad del código
+            const exists = await ProductModel.findOne({ code: code });
+            if (exists) {
+                throw new Error(`Ya existe un producto con el código ${code}.`);
             }
+
+            // 2. Crear el producto en MongoDB
+            const newProduct = await ProductModel.create(productData);
+            return newProduct.toObject(); // Devuelve el objeto plano para usarlo
+        } catch (error) {
+            // Si es un error de validación de Mongoose o de unicidad, lo lanzamos.
+            if (error.name === 'ValidationError' || error.message.includes('código')) {
+                 throw error;
+            }
+            console.error("Error al crear producto en MongoDB:", error.message);
+            throw new Error('Error de persistencia al agregar producto.');
         }
-        
-        this.products[index] = updatedProduct;
-        await this.#saveProducts();
-        return updatedProduct;
     }
 
-    async deleteProduct(id) {
-        await this.#readProducts();
-        const initialLength = this.products.length;
-        
-        this.products = this.products.filter(p => p.id !== id);
-
-        if (this.products.length < initialLength) {
-            await this.#saveProducts();
-            return true;
+    /**
+     * Actualiza un producto existente por ID.
+     * @param {string} id - ID del producto a actualizar.
+     * @param {Object} newFields - Campos a actualizar.
+     * @returns {Promise<Object|null>} El producto actualizado o null si no existe.
+     */
+    async updateProduct(id, newFields) {
+        try {
+            // Usamos findByIdAndUpdate con { new: true } para obtener el documento actualizado
+            // runValidators: true asegura que las validaciones del esquema se ejecuten al actualizar
+            const updatedProduct = await ProductModel.findByIdAndUpdate(
+                id, 
+                { $set: newFields }, 
+                { new: true, runValidators: true }
+            ).lean();
+            
+            return updatedProduct;
+        } catch (error) {
+            console.error("Error al actualizar producto:", error.message);
+            // Captura errores de validación (ej. precio negativo)
+            if (error.name === 'ValidationError') {
+                throw new Error(`Error de validación al actualizar: ${error.message}`);
+            }
+            throw new Error('Error de persistencia al actualizar producto.');
         }
-        
-        return false;
+    }
+
+    /**
+     * Elimina un producto por ID.
+     * @param {string} id - ID del producto a eliminar.
+     * @returns {Promise<boolean>} True si fue eliminado, false si no se encontró.
+     */
+    async deleteProduct(id) {
+        try {
+            // Mongoose: findByIdAndDelete devuelve el documento eliminado o null
+            const result = await ProductModel.findByIdAndDelete(id);
+            
+            return result !== null;
+        } catch (error) {
+            console.error("Error al eliminar producto:", error.message);
+            throw new Error('Error de persistencia al eliminar producto.');
+        }
     }
 }
+
+export default ProductManager;
 
 module.exports = ProductManager;
