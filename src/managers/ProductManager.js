@@ -1,126 +1,85 @@
-import ProductModel from '../models/Product.model.js'; 
+import ProductModel from '../models/Product.model.js';
 
-/**
- * Manager diseñado para interactuar ÚNICAMENTE con la persistencia (MongoDB/Mongoose).
- */
 class ProductManager {
-    constructor() {
-        console.log("🛠️ ProductManager inicializado con persistencia en MongoDB.");
+  async getProducts(limit = 10, page = 1, sort = null, queryFilters = {}) {
+    try {
+      const query = {};
+
+      if (queryFilters.category) query.category = queryFilters.category;
+      if (queryFilters.available) {
+        query.stock = queryFilters.available === 'true' ? { $gt: 0 } : { $lte: 0 };
+      }
+      if (queryFilters.searchTerm || queryFilters.query) {
+        const term = queryFilters.searchTerm || queryFilters.query;
+        const searchRegex = { $regex: term, $options: 'i' };
+        query.$or = [{ title: searchRegex }, { description: searchRegex }];
+      }
+
+      const options = {
+        limit: parseInt(limit),
+        page: parseInt(page),
+        lean: true,
+      };
+
+      if (sort === 'asc' || sort === 'desc') {
+        options.sort = { price: sort === 'asc' ? 1 : -1 };
+      }
+
+      const result = await ProductModel.paginate(query, options);
+
+      const baseUrl = '/products'; // ⚠️ importante: para las vistas, no la API
+      const buildLink = (p) => {
+        const params = new URLSearchParams({
+          limit,
+          page: p,
+          ...(sort && { sort }),
+          ...(queryFilters.category && { category: queryFilters.category }),
+          ...(queryFilters.available && { available: queryFilters.available }),
+          ...(queryFilters.query && { query: queryFilters.query }),
+        });
+        return `${baseUrl}?${params.toString()}`;
+      };
+
+      return {
+        status: 'success',
+        payload: result.docs || [],
+        totalPages: result.totalPages,
+        prevPage: result.prevPage,
+        nextPage: result.nextPage,
+        page: result.page,
+        hasPrevPage: result.hasPrevPage,
+        hasNextPage: result.hasNextPage,
+        prevLink: result.hasPrevPage ? buildLink(result.prevPage) : null,
+        nextLink: result.hasNextPage ? buildLink(result.nextPage) : null,
+        limit,
+        sort,
+        category: queryFilters.category || null,
+        available: queryFilters.available || null,
+        query: queryFilters.query || queryFilters.searchTerm || null
+      };
+    } catch (error) {
+      return {
+        status: 'error',
+        message: `Fallo en ProductManager.getProducts: ${error.message}`,
+      };
     }
+  }
 
-    /**
-     * Obtiene productos con paginación, filtros y ordenamiento.
-     * @param {Object} criteria - Objeto de criterios de filtrado (e.g., { category: 'Libros' }).
-     * @param {Object} options - Opciones de paginación y ordenamiento (limit, page, sort).
-     * @returns {Promise<Object>} Objeto con datos de paginación (docs, totalPages, page, etc.).
-     */
-    async getProducts(criteria = {}, options = {}) {
-        try {
-            // 1. Configurar opciones finales para paginate
-            const finalOptions = {
-                ...options,
-                lean: true // Fundamental para obtener objetos JS planos más rápidos
-            };
+  async getProductById(id) {
+    return await ProductModel.findById(id).lean();
+  }
 
-            // 2. Ejecutar la paginación de Mongoose
-            // ProductModel.paginate(criteria, finalOptions) devuelve el objeto completo
-            const productsData = await ProductModel.paginate(criteria, finalOptions);
-            
-            // Este objeto ya contiene: { docs, totalPages, page, hasPrevPage, hasNextPage, etc. }
-            return productsData;
-            
-        } catch (error) {
-            console.error('Error al obtener productos paginados:', error.message);
-            throw new Error('No se pudieron obtener los productos de la base de datos.');
-        }
-    }
+  async addProduct(data) {
+    return await ProductModel.create(data);
+  }
 
-    /**
-     * Obtiene un producto por su ID.
-     * @param {string} id - El ID de MongoDB del producto.
-     * @returns {Promise<Object|null>} El producto encontrado o null.
-     */
-    async getProductById(id) {
-        try {
-            const product = await ProductModel.findById(id).lean();
-            return product;
-        } catch (error) {
-            console.error("Error al obtener producto por ID:", error.message);
-            // Si el error es CastError, el router lo manejará. Aquí solo devolvemos nulo o lanzamos la excepción.
-            throw error; 
-        }
-    }
+  async updateProduct(id, data) {
+    return await ProductModel.findByIdAndUpdate(id, data, { new: true }).lean();
+  }
 
-    /**
-     * Agrega un nuevo producto a la base de datos.
-     * @param {Object} productData - Datos del producto.
-     * @returns {Promise<Object>} El nuevo producto creado.
-     */
-    async addProduct(productData) {
-        // La validación de campos obligatorios DEBERÍA estar en el esquema, pero se mantiene aquí temporalmente
-        const { title, description, code, price, stock, category } = productData;
-        if (!title || !description || !code || !price || !stock || !category) {
-            throw new Error("Todos los campos obligatorios deben estar presentes.");
-        }
-
-        try {
-            // 1. Verificar unicidad del código
-            const exists = await ProductModel.findOne({ code: code });
-            if (exists) {
-                throw new Error(`Ya existe un producto con el código ${code}.`);
-            }
-
-            // 2. Crear el producto en MongoDB
-            const newProduct = await ProductModel.create(productData);
-            return newProduct.toObject();
-        } catch (error) {
-            // Si es un error de validación de Mongoose, lo lanzamos para que el router lo capture.
-            if (error.name === 'ValidationError') {
-                 throw error;
-            }
-            console.error("Error al crear producto en MongoDB:", error.message);
-            throw new Error('Error de persistencia al agregar producto.');
-        }
-    }
-
-    /**
-     * Actualiza un producto existente por ID.
-     * @param {string} id - ID del producto a actualizar.
-     * @param {Object} newFields - Campos a actualizar.
-     * @returns {Promise<Object|null>} El producto actualizado o null si no existe.
-     */
-    async updateProduct(id, newFields) {
-        try {
-            const updatedProduct = await ProductModel.findByIdAndUpdate(
-                id, 
-                { $set: newFields }, 
-                { new: true, runValidators: true }
-            ).lean();
-            
-            return updatedProduct;
-        } catch (error) {
-            console.error("Error al actualizar producto:", error.message);
-            if (error.name === 'ValidationError') {
-                throw new Error(`Error de validación al actualizar: ${error.message}`);
-            }
-            throw new Error('Error de persistencia al actualizar producto.');
-        }
-    }
-
-    /**
-     * Elimina un producto por ID.
-     * @param {string} id - ID del producto a eliminar.
-     * @returns {Promise<boolean>} True si fue eliminado, false si no se encontró.
-     */
-    async deleteProduct(id) {
-        try {
-            const result = await ProductModel.findByIdAndDelete(id);
-            return result !== null;
-        } catch (error) {
-            console.error("Error al eliminar producto:", error.message);
-            throw new Error('Error de persistencia al eliminar producto.');
-        }
-    }
+  async deleteProduct(id) {
+    return await ProductModel.findByIdAndDelete(id).lean();
+  }
 }
 
-export default ProductManager;
+export default new ProductManager();

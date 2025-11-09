@@ -4,13 +4,14 @@ const form = document.getElementById('addProductForm');
 const productList = document.getElementById('productList');
 const errorMessage = document.getElementById('error-message');
 
-// Función para renderizar todos los productos usando la estructura de tarjeta del Canvas
+// Función para renderizar todos los productos usando la estructura de tarjeta mejorada
 const renderProducts = (products) => {
     productList.innerHTML = '';
     
     if (products.length === 0) {
-        productList.innerHTML = `<p class="col-span-full text-center text-gray-500">
-            No hay productos en tiempo real. ¡Agrega uno!
+        // Usa la misma estructura que en Handlebars para el mensaje de no hay productos
+        productList.innerHTML = `<p class="text-center col-span-full text-gray-500 p-8 border border-dashed border-gray-300 rounded-lg bg-white">
+            No hay productos disponibles para mostrar. ¡Agrega uno arriba!
         </p>`;
         return;
     }
@@ -20,25 +21,29 @@ const renderProducts = (products) => {
         const productId = product._id; 
         
         const productCard = document.createElement('div');
-        productCard.className = 'bg-white rounded-xl shadow-md overflow-hidden p-4 border border-gray-100';
+        // CLASES SINCRONIZADAS con el Handlebars mejorado
+        productCard.className = 'product-card bg-gray-100 p-5 rounded-2xl shadow-lg border border-gray-200';
+        
         productCard.innerHTML = `
-            <h4 class="text-xl font-bold text-gray-900 mb-2">${product.title}</h4>
-            <p class="text-gray-600 text-sm mb-3 line-clamp-2">${product.description}</p>
+            <h4 class="text-xl font-extrabold text-indigo-700 mb-2">${product.title}</h4>
+            <p class="text-sm text-gray-700 line-clamp-2">${product.description}</p>
+            <hr class="my-3 border-gray-300">
             
-            <div class="flex justify-between items-center mb-3">
-                <span class="text-2xl font-extrabold text-green-600">$${product.price}</span>
+            <div class="flex justify-between items-baseline mb-2">
+                <p class="text-2xl font-black text-green-600">$${product.price}</p>
+                <span class="text-xs font-medium text-green-500 bg-green-100 px-2 py-1 rounded-full">Disponible</span>
             </div>
 
-            <div class="text-xs text-gray-500 space-y-1">
-                <p><strong>Código:</strong> ${product.code}</p>
-                <p><strong>Stock:</strong> ${product.stock} unidades</p>
-                <p><strong>Categoría:</strong> ${product.category}</p>
-                <p><strong>ID:</strong> <code class="bg-gray-200 p-1 rounded">${productId}</code></p>
-            </div>
+            <p class="text-xs text-gray-500 space-y-1">
+                <span class="block"><strong>Stock:</strong> ${product.stock} unidades</span>
+                <span class="block"><strong>Categoría:</strong> ${product.category}</span>
+                <span class="block"><strong>Código:</strong> ${product.code}</span>
+                <span class="block text-gray-400 truncate"><strong>ID:</strong> <code class="bg-gray-200 p-1 rounded text-[10px]">${productId}</code></span>
+            </p>
 
             <button onclick="deleteProduct('${productId}')" 
-                    class="mt-4 w-full bg-red-500 text-white py-2 rounded-lg font-semibold hover:bg-red-600 transition duration-150">
-                Eliminar por Socket
+                    class="delete-btn mt-4 w-full bg-red-600 text-white text-base py-3 px-3 rounded-lg font-semibold hover:bg-red-700 transition duration-150 shadow-md">
+                🗑️ Eliminar por Socket
             </button>
         `;
         productList.appendChild(productCard);
@@ -109,8 +114,9 @@ socket.on('productError', (message) => {
 
 socket.on('connect', () => {
     console.log("Conectado al servidor de sockets.");
-    // Pedir la lista inicial al conectarse
-    socket.emit('getInitialProducts');
+    // 💥 CORRECCIÓN CRÍTICA: Eliminamos esta línea. 
+    // Los productos iniciales son cargados por Handlebars para evitar el parpadeo.
+    // socket.emit('getInitialProducts'); 
 });
 
 socket.on('disconnect', () => {

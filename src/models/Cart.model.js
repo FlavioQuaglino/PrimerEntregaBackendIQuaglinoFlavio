@@ -1,33 +1,35 @@
 import mongoose from 'mongoose';
 
-const cartProductSchema = new mongoose.Schema({
+// Esquema para cada ítem del carrito
+const cartItemSchema = new mongoose.Schema(
+  {
     product: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'products', // NECESARIO para el populate, apunta al ProductModel
-        required: true
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Product',   // Debe coincidir con el modelo Product
+      required: true,
     },
     quantity: {
-        type: Number,
-        default: 1
-    }
-}, { _id: false }); // Usamos _id: false para que Mongoose no cree un ID para cada subdocumento
+      type: Number,
+      required: true,
+      min: 1,
+    },
+  },
+  { _id: false } // no genera _id para cada ítem
+);
 
-const cartSchema = new mongoose.Schema({
+// Esquema principal del carrito
+const cartSchema = new mongoose.Schema(
+  {
     products: {
-        type: [cartProductSchema], // Array de los subdocumentos definidos arriba
-        default: []
-    }
-});
+      type: [cartItemSchema],
+      default: [],
+    },
+  },
+  { timestamps: true }
+);
 
-// Implementamos el middleware pre-find para que cada vez que se haga un find (o findOne)
-// se ejecute el populate de manera automática.
-cartSchema.pre('findOne', function (next) {
-    this.populate('products.product');
-    next();
-});
+// Evita OverwriteModelError en modo watch
+const CartModel =
+  mongoose.models.Cart || mongoose.model('Cart', cartSchema);
 
-// 1. Crear el modelo de Mongoose
-const CartModel = mongoose.model('carts', cartSchema);
-
-// 2. Exportar el modelo de Mongoose
 export default CartModel;

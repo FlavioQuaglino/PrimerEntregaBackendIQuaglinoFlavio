@@ -1,109 +1,101 @@
+import 'dotenv/config';
 import express from 'express';
+import mongoose from 'mongoose';
+import { create } from 'express-handlebars';
+import { Server as SocketIOServer } from 'socket.io';
 import http from 'http';
-import { Server } from 'socket.io';
-import { engine } from 'express-handlebars';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-// Importación de la conexión a la base de datos
-import connectDB from './config/db.config.js'; 
-
-// Importar Routers (Asegúrate de que los routers también usan "export default")
+// --- Importación de routers ---
 import productsRouter from './routes/products.router.js';
 import cartsRouter from './routes/carts.router.js';
 import viewsRouter from './routes/views.router.js';
 
-// Importación del Manager (Manager adaptado para Mongoose)
-import ProductManager from './managers/ProductManager.js'; 
-
-// Configuración de rutas para ESM (Reemplaza '__dirname' con compatibilidad)
+// --- Configuración de Paths (ES Modules) ---
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// --- Inicialización de Express y HTTP Server ---
 const app = express();
-const PORT = 3000;
-
-// ===================================
-// 1. CONEXIÓN A LA BASE DE DATOS
-// ===================================
-connectDB(); 
-
-// 2. CREAR SERVIDOR HTTP Y SOCKET.IO
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new SocketIOServer(server);
 
-const productManager = new ProductManager(); 
+// --- Configuración de variables de entorno ---
+const PORT = process.env.PORT || 3000;
+const DB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/ecommerce';
 
-// 3. CONFIGURACIÓN DE HANDLEBARS (Añadiendo el helper 'eq' necesario)
-app.engine('handlebars', engine({
-    helpers: {
-        // Helper para comparar igualdad, necesario para los <select> en home.handlebars
-        eq: (v1, v2) => v1 === v2,
-    }
-}));
-app.set('view engine', 'handlebars');
-app.set('views', path.join(__dirname, 'views')); 
-
-// 4. MIDDLEWARES
+// --- Middlewares ---
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, 'public'))); 
+app.use(express.static(path.join(__dirname, '../public')));
 
-// 5. CONEXIÓN DE ROUTERS
+// --- Configuración de Handlebars ---
+const hbs = create({
+  defaultLayout: 'main',
+  helpers: {
+    multiply: (a, b) => a * b,
+    ifEquals: (a, b, options) => (a == b ? options.fn(this) : options.inverse(this)),
+    json: context => JSON.stringify(context),
+    eq: (a, b) => a === b,
+    ne: (a, b) => a !== b,
+    gt: (a, b) => a > b,
+    gte: (a, b) => a >= b,
+    lt: (a, b) => a < b,
+    lte: (a, b) => a <= b,
+    and: (a, b) => a && b,
+    or: (a, b) => a || b,
+  },
+});
+
+app.engine('handlebars', hbs.engine);
+app.set('view engine', 'handlebars');
+app.set('views', path.join(__dirname, 'views'));
+
+// --- Socket.IO ---
+io.on('connection', socket => {
+  console.log('🟢 Cliente conectado a WebSocket');
+
+  socket.on('disconnect', () => {
+    console.log('🔴 Cliente desconectado de WebSocket');
+  });
+});
+
+// --- Rutas principales ---
 app.use('/api/products', productsRouter);
 app.use('/api/carts', cartsRouter);
 app.use('/', viewsRouter);
 
-// 6. LÓGICA DE WEBSOCKETS (Ahora interactúa con Mongoose a través del Manager)
-io.on('connection', (socket) => {
-    console.log('Nuevo cliente conectado por WebSockets 🟢');
-
-    // Emitir productos iniciales (ahora desde MongoDB)
-    socket.on('getInitialProducts', async () => {
-        try {
-            // Se usa el Manager que consulta a Mongoose. Se pasa criteria/options vacíos
-            const productsData = await productManager.getProducts({}, { limit: 100, lean: true });
-            socket.emit('productsUpdate', productsData.docs);
-        } catch (error) {
-            console.error("Error al obtener productos iniciales por socket:", error.message);
-        }
-    });
-
-    // Añadir nuevo producto (persiste en MongoDB)
-    socket.on('newProduct', async (productData) => {
-        try {
-            await productManager.addProduct(productData);
-            // Volver a obtener la lista completa para actualizar a todos los clientes
-            const updatedProductsData = await productManager.getProducts({}, { limit: 100, lean: true });
-            io.emit('productsUpdate', updatedProductsData.docs);
-        } catch (error) {
-            console.error("Error al agregar producto por socket:", error.message);
-            // Opcional: emitir un error solo al cliente que lo intentó
-            socket.emit('productError', "Error al agregar producto: " + error.message);
-        }
-    });
-
-    // Eliminar producto (de MongoDB)
-    socket.on('deleteProduct', async (productId) => {
-        try {
-            await productManager.deleteProduct(productId);
-            const updatedProductsData = await productManager.getProducts({}, { limit: 100, lean: true });
-            io.emit('productsUpdate', updatedProductsData.docs);
-        } catch (error) {
-            console.error("Error al eliminar producto por socket:", error);
-            socket.emit('productError', "Error al eliminar producto: " + error.message);
-        }
-    });
-
-    socket.on('disconnect', () => {
-        console.log('Cliente desconectado 🔴');
-    });
+// --- Redirección raíz ---
+app.get('/', (req, res) => {
+  res.redirect('/products');
 });
 
-
-// 7. INICIAR EL SERVIDOR
-server.listen(PORT, () => {
-    console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
-    console.log(`🏠 Vista Home: http://localhost:${PORT}/`);
-    console.log(`⏳ Vista Real Time: http://localhost:${PORT}/realtimeproducts`);
+// --- Manejador de rutas no definidas ---
+app.use((req, res) => {
+  res.status(404).render('error', {
+    title: '404 - Página no encontrada',
+    message: `La ruta "${req.originalUrl}" no existe.`,
+    status: 404,
+  });
 });
+
+// --- Conexión a MongoDB y arranque del servidor ---
+mongoose
+  .connect(DB_URI)
+  .then(() => {
+    console.log('✅ Conexión exitosa a MongoDB');
+    server.listen(PORT, () => {
+      console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
+      console.log(`📦 Productos: http://localhost:${PORT}/products`);
+      console.log(`⚡ Tiempo real: http://localhost:${PORT}/realtimeproducts`);
+      console.log(`🛒 Carrito: http://localhost:${PORT}/carts/ID_DEL_CARRITO`);
+    });
+  })
+  .catch(error => {
+    console.error('❌ Error al conectar con MongoDB:', error.message);
+    process.exit(1);
+  });
+
+// --- Exportamos io para usarlo en otros módulos (ej. products.router.js) ---
+export { io };

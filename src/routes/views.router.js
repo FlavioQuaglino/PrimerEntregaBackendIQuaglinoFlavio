@@ -1,149 +1,156 @@
 import { Router } from 'express';
-// Usamos los Managers que ya están configurados para Mongoose
-import ProductManager from '../managers/ProductManager.js'; 
-import CartManager from '../managers/CartManager.js';
+import ProductModel from '../models/Product.model.js';
+import CartModel from '../models/Cart.model.js';
 
-const productManager = new ProductManager(); 
-const cartManager = new CartManager();
 const router = Router();
 
-// ID de carrito fijo para la demo (debes asegurarte de que este ID exista en tu MongoDB)
-// Si no quieres crear un carrito manualmente, puedes poner '69092369c5a306f1d13ffac1'
-// si usaste el ID que se vio en la captura de pantalla anterior.
-const DEMO_CART_ID = '69092369c5a306f1d13ffac1'; // ⬅️ Usamos un ID de ejemplo
-
-// ===============================================
-// GET / - Vista Home (Paginada)
-// ===============================================
-router.get('/', async (req, res) => {
-    // 1. Obtener parámetros de Query para la paginación y filtros
-    const { 
-        limit = 10, 
-        page = 1, 
-        sort, 
-        query, 
-        category,
-        availability 
+/** ✅ Vista de productos con paginación, filtro, sort y rango de precio */
+router.get('/products', async (req, res) => {
+  try {
+    const {
+      limit = 10,
+      page = 1,
+      sort,
+      query,      // categoría o 'available'
+      minPrice,
+      maxPrice
     } = req.query;
 
-    const options = {
-        limit: parseInt(limit),
-        page: parseInt(page),
-        sort: sort ? { price: sort === 'asc' ? 1 : -1 } : {},
-        lean: true, // Importante: Mongoose devuelve documentos, 'lean: true' los convierte a objetos JS planos para Handlebars.
-    };
+    const filter = {};
 
-    // Construcción del filtro (criteria), similar al API Router
-    const criteria = {};
-
-    if (category) {
-        criteria.category = category;
-    }
-    
-    if (availability !== undefined) {
-        criteria.status = availability === 'true'; 
-    }
-
+    // Categoría o disponibilidad
     if (query) {
-        criteria.$or = [
-            { title: { $regex: query, $options: 'i' } },
-            { description: { $regex: query, $options: 'i' } }
-        ];
+      if (query === 'available') {
+        filter.stock = { $gt: 0 };
+      } else {
+        filter.category = query;
+      }
     }
-    
-    try {
-        const productsData = await productManager.getProducts(criteria, options);
 
-        const { docs, totalPages, prevPage, nextPage, hasPrevPage, hasNextPage, page: currentPage } = productsData;
-        
-        // Generación de links y manejo de parámetros de query
-        const getQueryString = (pageNumber) => {
-            const params = new URLSearchParams(req.query);
-            params.set('page', pageNumber);
-            // Aseguramos que 'page' sea el único parámetro que cambia.
-            return `?${params.toString()}`;
-        };
-
-        const context = {
-            products: docs,
-            title: 'Lista de Productos (Paginada)',
-            activeCartId: DEMO_CART_ID, // ⬅️ AGREGADO: ID del carrito activo para el frontend
-            // Datos de paginación para Handlebars
-            currentPage,
-            totalPages,
-            hasPrevPage,
-            hasNextPage,
-            prevLink: hasPrevPage ? getQueryString(prevPage) : null,
-            nextLink: hasNextPage ? getQueryString(nextPage) : null,
-            // Mantener filtros en la vista
-            currentLimit: limit,
-            currentSort: sort,
-            currentQuery: query,
-            currentCategory: category,
-            currentAvailability: availability,
-        };
-        
-        res.render('home', context); 
-    } catch (error) {
-        console.error('Error al cargar la vista home:', error);
-        // Deberías tener una plantilla 'error.handlebars'
-        res.status(500).render('error', { title: 'Error', message: 'No se pudieron cargar los productos o la paginación falló.' });
+    // Filtro por rango de precio
+    if (minPrice || maxPrice) {
+      filter.price = {};
+      if (minPrice) filter.price.$gte = Number(minPrice);
+      if (maxPrice) filter.price.$lte = Number(maxPrice);
     }
+
+    const sortOption =
+      sort === 'asc'
+        ? { price: 1 }
+        : sort === 'desc'
+        ? { price: -1 }
+        : {};
+
+    const products = await ProductModel.paginate(filter, {
+      limit: parseInt(limit),
+      page: parseInt(page),
+      sort: sortOption,
+      lean: true,
+    });
+
+    const baseUrl = '/products';
+    const buildLink = (p) =>
+      `${baseUrl}?limit=${limit}&page=${p}${
+        sort ? `&sort=${sort}` : ''
+      }${query ? `&query=${query}` : ''}${
+        minPrice ? `&minPrice=${minPrice}` : ''
+      }${maxPrice ? `&maxPrice=${maxPrice}` : ''}`;
+
+    res.render('products', {
+      title: 'Catálogo de Productos',
+      products: products.docs,
+      page: products.page,
+      totalPages: products.totalPages,
+      hasPrevPage: products.hasPrevPage,
+      hasNextPage: products.hasNextPage,
+      prevLink: products.hasPrevPage ? buildLink(products.prevPage) : null,
+      nextLink: products.hasNextPage ? buildLink(products.nextPage) : null,
+      // Para mantener valores en el formulario
+      query,
+      sort,
+      minPrice,
+      maxPrice
+    });
+  } catch (error) {
+    console.error('❌ Error al renderizar /products:', error);
+    res.status(500).render('error', { message: 'Error al cargar productos.' });
+  }
 });
 
-// ===============================================
-// GET /realtimeproducts - Vista de Productos en Tiempo Real (WebSockets)
-// ===============================================
+/** ⚡ Vista realtime y /carts/:cid se quedan igual que ya los tenías */
 router.get('/realtimeproducts', async (req, res) => {
-    try {
-        // En esta vista solo se necesita renderizar la plantilla, 
-        // la lista inicial se obtiene luego vía Socket.IO en app.js
-        const initialProducts = await productManager.getProducts({}, { limit: 100, lean: true });
-        
-        res.render('realTimeProducts', { 
-            title: 'Productos en Tiempo Real (Mongoose)',
-            products: initialProducts.docs // Pasamos el array de productos inicial
-        });
-
-    } catch (error) {
-        console.error('Error al cargar la vista realTimeProducts:', error);
-        res.status(500).render('error', { title: 'Error', message: 'Error al cargar la vista en tiempo real.' });
-    }
+  try {
+    const products = await ProductModel.find().lean();
+    res.render('realTimeProducts', {
+      title: 'Productos en Tiempo Real',
+      products,
+    });
+  } catch (error) {
+    console.error('❌ Error al renderizar /realtimeproducts:', error);
+    res
+      .status(500)
+      .render('error', { message: 'Error al cargar vista en tiempo real.' });
+  }
 });
 
-
-// ===============================================
-// GET /carts/:cid - Vista de Carrito
-// ===============================================
 router.get('/carts/:cid', async (req, res) => {
+  try {
     const { cid } = req.params;
-    
-    try {
-        // Obtenemos el carrito con POPULATE (productos completos)
-        const cart = await cartManager.getCartById(cid);
 
-        if (!cart) {
-            return res.status(404).render('error', { title: 'Error 404', message: `Carrito con ID ${cid} no encontrado.` });
-        }
+    const cart = await CartModel.findById(cid)
+      .populate('products.product')
+      .lean();
 
-        // El objeto 'cart' ya tiene los productos populados para Handlebars
-        res.render('cart', { 
-            title: `Carrito ID: ${cid}`, 
-            cartId: cid,
-            products: cart.products.map(item => ({
-                // Flattening object structure for easier use in Handlebars
-                productId: item.product._id,
-                title: item.product.title,
-                price: item.product.price,
-                quantity: item.quantity
-            })),
-            cart
-        });
-    } catch (error) {
-        console.error('Error al cargar la vista del carrito:', error.message);
-        res.status(400).render('error', { title: 'Error', message: 'ID de carrito inválido o error interno.' });
+    if (!cart) {
+      return res.status(404).render('error', {
+        message: `Carrito ${cid} no encontrado.`,
+      });
     }
+
+    const cartProducts = cart.products.map((item) => ({
+      id: item.product._id,
+      title: item.product.title,
+      price: item.product.price,
+      quantity: item.quantity,
+      total: item.product.price * item.quantity,
+    }));
+
+    const totalPrice = cartProducts.reduce((acc, p) => acc + p.total, 0);
+
+    res.render('cart', {
+      title: `Carrito ${cid}`,
+      cartId: cid,
+      products: cartProducts,
+      hasProducts: cartProducts.length > 0,
+      totalPrice,
+    });
+  } catch (error) {
+    console.error('❌ Error al renderizar /carts/:cid:', error);
+    res
+      .status(500)
+      .render('error', { message: 'Error al cargar carrito.' });
+  }
 });
 
+
+/** 🔍 Vista de un producto individual */
+router.get('/products/:pid', async (req, res) => {
+  try {
+    const { pid } = req.params;
+    const product = await ProductModel.findById(pid).lean();
+
+    if (!product) {
+      return res.status(404).render('error', { message: 'Producto no encontrado' });
+    }
+
+    res.render('productDetail', {
+      title: product.title,
+      product,
+    });
+  } catch (error) {
+    console.error('❌ Error al renderizar /products/:pid:', error);
+    res.status(500).render('error', { message: 'Error al cargar el producto.' });
+  }
+});
 
 export default router;

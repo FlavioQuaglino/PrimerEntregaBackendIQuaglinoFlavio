@@ -1,0 +1,102 @@
+<h1 class="text-2xl font-bold mb-4">🛒 Carrito ID: {{cart._id}}</h1>
+
+{{#if cart.products.length}}
+  <table border="1" cellspacing="0" cellpadding="8">
+    <thead>
+      <tr>
+        <th>Producto</th>
+        <th>Precio</th>
+        <th>Categoría</th>
+        <th>Cantidad</th>
+        <th>Subtotal</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody id="cart-products">
+      {{#each cart.products}}
+        <tr data-product-id="{{this.product._id}}">
+          <td>{{this.product.title}}</td>
+          <td>${{this.product.price}}</td>
+          <td>{{this.product.category}}</td>
+          <td>
+            <input
+              type="number"
+              class="qty-input"
+              min="1"
+              value="{{this.quantity}}"
+              style="width:60px; text-align:center;"
+            />
+          </td>
+          <td>${{multiply this.product.price this.quantity}}</td>
+          <td>
+            <button class="update-btn" data-pid="{{this.product._id}}">Actualizar</button>
+            <button class="remove-btn" data-pid="{{this.product._id}}">Eliminar</button>
+          </td>
+        </tr>
+      {{/each}}
+    </tbody>
+  </table>
+
+  <div style="margin-top: 20px;">
+    <button id="clear-cart" style="background-color: crimson; color: white; padding: 8px 12px;">Vaciar carrito</button>
+  </div>
+{{else}}
+  <p>El carrito está vacío 🥲</p>
+{{/if}}
+
+<script>
+  const cartId = '{{cart._id}}';
+
+  // 🗑️ Eliminar producto
+  document.querySelectorAll('.remove-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const pid = btn.dataset.pid;
+      const res = await fetch(`/api/carts/${cartId}/products/${pid}`, {
+        method: 'DELETE'
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        alert('Producto eliminado');
+        location.reload();
+      } else {
+        alert('Error al eliminar producto');
+      }
+    });
+  });
+
+  // 🔢 Actualizar cantidad
+  document.querySelectorAll('.update-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const pid = btn.dataset.pid;
+      const row = btn.closest('tr');
+      const qty = parseInt(row.querySelector('.qty-input').value);
+
+      const res = await fetch(`/api/carts/${cartId}/products/${pid}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ quantity: qty })
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        alert('Cantidad actualizada');
+        location.reload();
+      } else {
+        alert('Error al actualizar cantidad');
+      }
+    });
+  });
+
+  // 🧹 Vaciar carrito completo
+  document.getElementById('clear-cart').addEventListener('click', async () => {
+    if (confirm('¿Seguro que querés vaciar el carrito?')) {
+      const res = await fetch(`/api/carts/${cartId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.status === 'success') {
+        alert('Carrito vaciado.');
+        location.reload();
+      } else {
+        alert('Error al vaciar carrito.');
+      }
+    }
+  });
+</script>

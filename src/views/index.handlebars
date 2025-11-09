@@ -1,0 +1,60 @@
+<div class="max-w-7xl mx-auto py-10 px-6">
+  <h1 class="text-3xl font-bold mb-6 text-center">🛍️ Catálogo de Productos</h1>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+    {{#each payload.docs}}
+      <div class="bg-white rounded-2xl shadow p-4 flex flex-col justify-between">
+        <div>
+          <h2 class="text-xl font-semibold mb-2">{{this.title}}</h2>
+          <p class="text-gray-600 text-sm mb-2">{{this.description}}</p>
+          <p class="text-lg font-bold text-blue-600 mb-2">${{this.price}}</p>
+          <p class="text-sm text-gray-500 mb-2">Stock: {{this.stock}}</p>
+        </div>
+
+        <div class="mt-4 flex flex-col gap-2">
+          <a href="/products/{{this._id}}" class="text-center bg-blue-600 text-white rounded-lg py-2 hover:bg-blue-700">Ver detalle</a>
+          <button onclick="addToCart('{{this._id}}')" class="bg-green-600 text-white rounded-lg py-2 hover:bg-green-700">Agregar al carrito</button>
+        </div>
+      </div>
+    {{/each}}
+  </div>
+
+  <!-- PAGINACIÓN -->
+  <div class="mt-8 flex justify-center gap-2">
+    {{#if payload.hasPrevPage}}
+      <a href="/products?page={{payload.prevPage}}&limit={{payload.limit}}" class="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">⬅️ Anterior</a>
+    {{/if}}
+
+    {{#each payload.pageList}}
+      <a href="/products?page={{this}}&limit={{../payload.limit}}" class="px-3 py-1 rounded-lg {{#ifEquals ../payload.page this}}bg-blue-600 text-white{{else}}bg-gray-200 hover:bg-gray-300{{/ifEquals}}">{{this}}</a>
+    {{/each}}
+
+    {{#if payload.hasNextPage}}
+      <a href="/products?page={{payload.nextPage}}&limit={{payload.limit}}" class="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">Siguiente ➡️</a>
+    {{/if}}
+  </div>
+</div>
+
+<script>
+async function addToCart(productId) {
+  try {
+    const cartId = localStorage.getItem('cartId');
+    if (!cartId) return alert('Primero creá un carrito.');
+
+    const res = await fetch(`/api/carts/${cartId}/products/${productId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ quantity: 1 })
+    });
+
+    const data = await res.json();
+    if (data.status === 'success') {
+      alert('Producto agregado al carrito 🛒');
+    } else {
+      alert('Error: ' + data.message);
+    }
+  } catch (err) {
+    alert('Error al agregar producto');
+  }
+}
+</script>

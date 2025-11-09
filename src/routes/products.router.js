@@ -1,170 +1,156 @@
+// src/routes/products.router.js
 import { Router } from 'express';
-// Importamos el Manager que ya no necesita argumento de archivo
-import ProductManager from '../managers/ProductManager.js'; 
+import productManager from '../managers/ProductManager.js';
 
-const productManager = new ProductManager(); 
 const router = Router();
 
-// Middleware para manejar errores asíncronos de forma centralizada
-const asyncHandler = fn => (req, res, next) => {
-    Promise.resolve(fn(req, res, next)).catch(next);
-};
-
-// ===============================================
-// GET /api/products - CON PAGINACIÓN Y FILTROS (CORREGIDO)
-// ===============================================
-router.get('/', asyncHandler(async (req, res) => {
-    const { 
-        limit = 10, 
-        page = 1, 
-        sort, 
-        query, 
-        category,
-        availability 
+// ✅ GET /api/products
+router.get('/', async (req, res) => {
+  try {
+    const {
+      limit = 10,
+      page = 1,
+      sort,
+      query, // puede ser categoría o 'available'
     } = req.query;
 
-    const options = {
-        limit: parseInt(limit),
-        page: parseInt(page),
-        sort: sort ? { price: sort === 'asc' ? 1 : -1 } : {}, // Ordenar por precio (1: asc, -1: desc)
-        // Usaremos .lean() en el manager para obtener objetos JavaScript planos
-    };
+    const queryFilters = {};
 
-    // Construcción del filtro (criteria)
-    const criteria = {};
-
-    if (category) {
-        criteria.category = category;
-    }
-    
-    // El campo 'availability' en el query string se mapea al campo 'status' en el esquema
-    if (availability !== undefined) {
-        // En tu esquema (Product.model.js), 'status' es el campo booleano de disponibilidad
-        criteria.status = availability === 'true'; // Convierte el string 'true'/'false' a booleano
-    }
-
-    // Lógica para búsqueda de texto (ej. por título o descripción)
     if (query) {
-        // Usamos $or para buscar en múltiples campos
-        criteria.$or = [
-            { title: { $regex: query, $options: 'i' } },
-            { description: { $regex: query, $options: 'i' } }
-        ];
+      if (query === 'available') {
+        queryFilters.available = 'true';
+      } else {
+        queryFilters.category = query;
+      }
     }
 
+    const result = await productManager.getProducts(limit, page, sort, queryFilters);
 
-    try {
-        // El Manager debe actualizar su método getProducts para aceptar criteria y options
-        const productsData = await productManager.getProducts(criteria, options);
-
-        // Desestructuramos para obtener las propiedades necesarias
-        const { docs, totalPages, prevPage, nextPage, hasPrevPage, hasNextPage, page: currentPage } = productsData;
-        
-        // Generación de los links (URI)
-        const baseUrl = `${req.protocol}://${req.get('host')}${req.baseUrl}`;
-
-        const generateLink = (pageNumber) => {
-            const params = new URLSearchParams(req.query);
-            params.set('page', pageNumber);
-            return `${baseUrl}?${params.toString()}`;
-        };
-
-        const response = {
-            status: 'success',
-            payload: docs, // <--- ASEGURAMOS QUE LOS PRODUCTOS VAYAN EN EL PAYLOAD
-            totalPages,
-            prevPage, // Agregado para mayor detalle
-            nextPage, // Agregado para mayor detalle
-            page: currentPage,
-            hasPrevPage,
-            hasNextPage,
-            prevLink: hasPrevPage ? generateLink(prevPage) : null,
-            nextLink: hasNextPage ? generateLink(nextPage) : null,
-        };
-
-        res.json(response);
-    } catch (error) {
-        // En caso de error de Mongoose o Manager
-        res.status(500).json({ status: 'error', error: 'Error al obtener productos: ' + error.message });
+    // Si el manager ya devolvió status:error, devolvemos igual pero con 500
+    if (result.status === 'error') {
+      return res.status(500).json(result);
     }
-}));
 
+    // 👉 ESTE OBJETO es EXACTAMENTE el formato que te piden
+    return res.status(200).json(result);
+  } catch (error) {
+    console.error('❌ Error en GET /api/products:', error);
+    return res.status(500).json({
+      status: 'error',
+      payload: [],
+      totalPages: 0,
+      prevPage: null,
+      nextPage: null,
+      page: 1,
+      hasPrevPage: false,
+      hasNextPage: false,
+      prevLink: null,
+      nextLink: null,
+      message: error.message,
+    });
+  }
+});
 
-// ===============================================
-// GET /api/products/:pid
-// ===============================================
-router.get('/:pid', asyncHandler(async (req, res) => {
+// ✅ GET /api/products/:pid
+router.get('/:pid', async (req, res) => {
+  try {
     const { pid } = req.params;
-    
-    try {
-        const product = await productManager.getProductById(pid);
+    const product = await productManager.getProductById(pid);
 
-        if (!product) {
-            return res.status(404).json({ error: 'Producto no encontrado' });
-        }
-    
-        res.json(product);
-    } catch (error) {
-         // Captura errores como CastError (ID con formato incorrecto)
-        res.status(400).json({ error: 'ID de producto inválido: ' + error.message });
+    if (!product) {
+      return res.status(404).json({
+        status: 'error',
+        message: `Producto con ID ${pid} no encontrado.`,
+      });
     }
-}));
 
+    return res.status(200).json({
+      status: 'success',
+      payload: product,
+    });
+  } catch (error) {
+    console.error('❌ Error en GET /api/products/:pid:', error);
+    return res.status(500).json({
+      status: 'error',
+      message: 'Error al obtener el producto.',
+      details: error.message,
+    });
+  }
+});
 
-// ===============================================
-// POST /api/products
-// ===============================================
-router.post('/', asyncHandler(async (req, res) => {
-    try {
-        const newProduct = await productManager.addProduct(req.body);
-        res.status(201).json({ message: 'Producto agregado exitosamente', product: newProduct });
-    } catch (error) {
-        // El manager lanza errores con mensajes específicos (ej. validación, código duplicado)
-        res.status(400).json({ error: error.message });
-    }
-}));
+// ✅ POST /api/products
+router.post('/', async (req, res) => {
+  try {
+    const newProduct = await productManager.addProduct(req.body);
+    return res.status(201).json({
+      status: 'success',
+      payload: newProduct,
+      message: 'Producto creado exitosamente.',
+    });
+  } catch (error) {
+    console.error('❌ Error en POST /api/products:', error);
+    return res.status(400).json({
+      status: 'error',
+      message: 'Error al crear el producto.',
+      details: error.message,
+    });
+  }
+});
 
-
-// ===============================================
-// PUT /api/products/:pid
-// ===============================================
-router.put('/:pid', asyncHandler(async (req, res) => {
+// ✅ PUT /api/products/:pid
+router.put('/:pid', async (req, res) => {
+  try {
     const { pid } = req.params;
-    
-    try {
-        const updatedProduct = await productManager.updateProduct(pid, req.body);
+    const updated = await productManager.updateProduct(pid, req.body);
 
-        if (!updatedProduct) {
-            return res.status(404).json({ error: 'Producto no encontrado para actualizar' });
-        }
-
-        res.json({ message: 'Producto actualizado exitosamente', product: updatedProduct });
-    } catch (error) {
-        // Captura errores de validación de Mongoose o ID inválido
-        res.status(400).json({ error: error.message });
+    if (!updated) {
+      return res.status(404).json({
+        status: 'error',
+        message: `Producto con ID ${pid} no encontrado.`,
+      });
     }
-}));
 
+    return res.status(200).json({
+      status: 'success',
+      payload: updated,
+      message: 'Producto actualizado correctamente.',
+    });
+  } catch (error) {
+    console.error('❌ Error en PUT /api/products/:pid:', error);
+    return res.status(400).json({
+      status: 'error',
+      message: 'Error al actualizar el producto.',
+      details: error.message,
+    });
+  }
+});
 
-// ===============================================
-// DELETE /api/products/:pid
-// ===============================================
-router.delete('/:pid', asyncHandler(async (req, res) => {
+// ✅ DELETE /api/products/:pid
+router.delete('/:pid', async (req, res) => {
+  try {
     const { pid } = req.params;
-    
-    try {
-        const wasDeleted = await productManager.deleteProduct(pid);
+    const deleted = await productManager.deleteProduct(pid);
 
-        if (!wasDeleted) {
-            return res.status(404).json({ error: 'Producto no encontrado para eliminar' });
-        }
-
-        res.json({ message: 'Producto eliminado exitosamente' });
-    } catch (error) {
-        // Captura errores por ID inválido
-        res.status(400).json({ error: error.message });
+    if (!deleted) {
+      return res.status(404).json({
+        status: 'error',
+        message: `Producto con ID ${pid} no encontrado.`,
+      });
     }
-}));
 
+    return res.status(200).json({
+      status: 'success',
+      payload: deleted,
+      message: 'Producto eliminado correctamente.',
+    });
+  } catch (error) {
+    console.error('❌ Error en DELETE /api/products/:pid:', error);
+    return res.status(500).json({
+      status: 'error',
+      message: 'Error al eliminar el producto.',
+      details: error.message,
+    });
+  }
+});
 
 export default router;

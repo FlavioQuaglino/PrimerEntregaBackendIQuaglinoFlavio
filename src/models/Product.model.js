@@ -1,27 +1,26 @@
 import mongoose from 'mongoose';
-// ⚠️ PASO 1 CRÍTICO: Necesitas importar mongoose-paginate-v2
 import mongoosePaginate from 'mongoose-paginate-v2';
 
-const productSchema = new mongoose.Schema({ // <-- Renombrado a minúscula
+// Esquema del producto
+const productSchema = new mongoose.Schema(
+  {
     title: { type: String, required: true },
     description: { type: String, required: true },
-    code: { type: String, required: true, unique: true }, // 'unique: true' para validar códigos
-    price: { type: Number, required: true, min: 0 },
+    code: { type: String, required: true, unique: true },
+    price: { type: Number, required: true },
+    status: { type: Boolean, default: true },
     stock: { type: Number, required: true, min: 0 },
     category: { type: String, required: true },
-    thumbnails: { type: [String], default: [] }, // Array de strings
-    status: { type: Boolean, default: true }
-}, {
-    // Esto asegura que se incluyan createdAt y updatedAt
-    timestamps: true 
-});
+    thumbnails: { type: [String], default: [] },
+  },
+  { timestamps: true }
+);
 
-// ⚠️ PASO 2 CRÍTICO: Aplicar el plugin de paginación al esquema
-productSchema.plugin(mongoosePaginate); 
+// Plugin de paginación
+productSchema.plugin(mongoosePaginate);
 
-// Crear el modelo
-// Usamos el nombre 'products' en minúscula para la colección (Mongoose lo pluraliza automáticamente)
-export const ProductModel = mongoose.model('products', productSchema); 
+// Evita OverwriteModelError en modo watch
+const ProductModel =
+  mongoose.models.Product || mongoose.model('Product', productSchema);
 
-// Exportación por defecto para mantener la compatibilidad con el ProductManager
 export default ProductModel;

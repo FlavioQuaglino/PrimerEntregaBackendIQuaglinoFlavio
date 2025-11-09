@@ -12,14 +12,14 @@
             <div class="col-span-full sm:col-span-2">
                 <label for="query" class="block text-sm font-medium text-gray-700">Búsqueda (Título/Desc.):</label>
                 <input type="text" id="query" name="query" value="{{currentQuery}}" placeholder="Buscar producto..."
-                       class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500">
+                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500">
             </div>
 
             <!-- Filtro por Categoría -->
             <div>
                 <label for="category" class="block text-sm font-medium text-gray-700">Categoría:</label>
                 <input type="text" id="category" name="category" value="{{currentCategory}}" placeholder="Ej: Fantasía"
-                       class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500">
+                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500">
             </div>
             
             <!-- Ordenamiento (Sort) -->
@@ -46,7 +46,7 @@
             </div>
             
             <!-- Límite (Limit) - Opcional, pero útil para la paginación -->
-             <div>
+            <div>
                 <label for="limit" class="block text-sm font-medium text-gray-700">Productos por página:</label>
                 <select id="limit" name="limit"
                         class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500">
@@ -65,7 +65,8 @@
 
     <!-- Lista de Productos -->
     <div class="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {{#each products}}
+        <!-- Iterar sobre products.payload -->
+        {{#each products.payload}}
             <div class="product-card bg-white p-6 rounded-xl shadow-lg border border-gray-200 flex flex-col justify-between">
                 <div>
                     <h3 class="text-xl font-bold text-gray-900 mb-2">{{this.title}}</h3>
@@ -85,7 +86,7 @@
                     </div>
                 </div>
 
-                <!-- Botón de Añadir al Carrito -->
+                <!-- Botón de Añadir al Carrito - Mantiene el handler onclick -->
                 <button 
                     onclick="addToCart('{{this._id}}')" 
                     class="mt-4 w-full bg-indigo-600 text-white py-2 rounded-lg font-semibold hover:bg-indigo-700 transition duration-150 shadow-md">
@@ -95,16 +96,18 @@
         {{/each}}
     </div>
 
-    <!-- ⬇️ SECCIÓN DE PAGINACIÓN ⬇️ -->
+    <!-- SECCIÓN DE PAGINACIÓN -->
     <div class="max-w-4xl mx-auto mt-10 flex justify-between items-center p-4 bg-gray-100 rounded-lg shadow-inner">
         <div class="text-gray-600 text-sm">
-            Página {{currentPage}} de {{totalPages}}
+            <!-- Accediendo a la metadata a través del objeto 'products' -->
+            Página {{products.page}} de {{products.totalPages}}
         </div>
 
         <div class="flex space-x-3">
             <!-- Botón Anterior -->
-            {{#if hasPrevPage}}
-                <a href="{{prevLink}}" class="bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg transition duration-150 shadow-md">
+            {{#if products.hasPrevPage}}
+                <!-- Accediendo al enlace de paginación a través del objeto 'products' -->
+                <a href="{{products.prevLink}}" class="bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg transition duration-150 shadow-md">
                     ← Anterior
                 </a>
             {{else}}
@@ -114,8 +117,9 @@
             {{/if}}
 
             <!-- Botón Siguiente -->
-            {{#if hasNextPage}}
-                <a href="{{nextLink}}" class="bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg transition duration-150 shadow-md">
+            {{#if products.hasNextPage}}
+                <!-- Accediendo al enlace de paginación a través del objeto 'products' -->
+                <a href="{{products.nextLink}}" class="bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg transition duration-150 shadow-md">
                     Siguiente →
                 </a>
             {{else}}
@@ -125,14 +129,37 @@
             {{/if}}
         </div>
     </div>
-    <!-- ⬆️ FIN SECCIÓN DE PAGINACIÓN ⬆️ -->
+    <!-- FIN SECCIÓN DE PAGINACIÓN -->
 
-    <!-- IMPORTANTE: Campo oculto para pasar el ID del carrito al JS -->
+    <!-- IMPORTANTE: Campo oculto para pasar el ID del carrito al JS (Aunque ya no es estrictamente necesario para el POST) -->
     <input type="hidden" id="activeCartId" value="{{activeCartId}}">
 
-    <!-- Script para manejar la lógica de añadir al carrito y filtros -->
-    <script src="/js/home.js"></script>
+    <!-- AÑADIR ESTILOS Y ELEMENTO DE NOTIFICACIÓN ANTES DE CARGAR EL SCRIPT -->
+    <style>
+        /* Estilos básicos para la notificación */
+        #notificationBox {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 20px;
+            border-radius: 8px;
+            color: white;
+            font-weight: bold;
+            z-index: 1000;
+            display: none; /* Oculto por defecto */
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            transition: opacity 0.3s ease-in-out;
+            font-family: 'Inter', sans-serif;
+            min-width: 250px;
+            text-align: center;
+        }
+        .success { background-color: #10b981; } /* Tailwind green-500 */
+        .error { background-color: #ef4444; }   /* Tailwind red-500 */
+    </style>
 
-    <!-- Script para manejar la lógica de filtros (asumiendo que tienes un archivo de filtros) -->
-    <!-- <script src="/js/filter_logic.js"></script> -->
+    <div id="notificationBox"></div>
+
+    <!-- Script para manejar la lógica de añadir al carrito (DEBE ESTAR DESPUÉS DE LA CAJA DE NOTIFICACIÓN) -->
+    <script src="/js/home.js"></script>
 </div>
