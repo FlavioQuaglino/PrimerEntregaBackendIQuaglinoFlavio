@@ -1,7 +1,6 @@
 import mongoose from 'mongoose';
 import mongoosePaginate from 'mongoose-paginate-v2';
 
-// Esquema del producto
 const productSchema = new mongoose.Schema(
   {
     title: { type: String, required: true },
@@ -16,10 +15,8 @@ const productSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Plugin de paginación
 productSchema.plugin(mongoosePaginate);
 
-// Evita OverwriteModelError en modo watch
 const ProductModel =
   mongoose.models.Product || mongoose.model('Product', productSchema);
 

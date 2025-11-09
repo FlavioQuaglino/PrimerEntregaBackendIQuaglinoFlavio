@@ -47,7 +47,6 @@
 <script>
   const cartId = '{{cart._id}}';
 
-  // 🗑️ Eliminar producto
   document.querySelectorAll('.remove-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
       const pid = btn.dataset.pid;
@@ -64,7 +63,6 @@
     });
   });
 
-  // 🔢 Actualizar cantidad
   document.querySelectorAll('.update-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
       const pid = btn.dataset.pid;
@@ -86,7 +84,6 @@
     });
   });
 
-  // 🧹 Vaciar carrito completo
   document.getElementById('clear-cart').addEventListener('click', async () => {
     if (confirm('¿Seguro que querés vaciar el carrito?')) {
       const res = await fetch(`/api/carts/${cartId}`, { method: 'DELETE' });

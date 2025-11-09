@@ -4,21 +4,19 @@ import CartModel from '../models/Cart.model.js';
 
 const router = Router();
 
-/** ✅ Vista de productos con paginación, filtro, sort y rango de precio */
 router.get('/products', async (req, res) => {
   try {
     const {
       limit = 10,
       page = 1,
       sort,
-      query,      // categoría o 'available'
+      query,      
       minPrice,
       maxPrice
     } = req.query;
 
     const filter = {};
 
-    // Categoría o disponibilidad
     if (query) {
       if (query === 'available') {
         filter.stock = { $gt: 0 };
@@ -27,7 +25,6 @@ router.get('/products', async (req, res) => {
       }
     }
 
-    // Filtro por rango de precio
     if (minPrice || maxPrice) {
       filter.price = {};
       if (minPrice) filter.price.$gte = Number(minPrice);
@@ -65,7 +62,6 @@ router.get('/products', async (req, res) => {
       hasNextPage: products.hasNextPage,
       prevLink: products.hasPrevPage ? buildLink(products.prevPage) : null,
       nextLink: products.hasNextPage ? buildLink(products.nextPage) : null,
-      // Para mantener valores en el formulario
       query,
       sort,
       minPrice,
@@ -77,7 +73,6 @@ router.get('/products', async (req, res) => {
   }
 });
 
-/** ⚡ Vista realtime y /carts/:cid se quedan igual que ya los tenías */
 router.get('/realtimeproducts', async (req, res) => {
   try {
     const products = await ProductModel.find().lean();
@@ -133,7 +128,6 @@ router.get('/carts/:cid', async (req, res) => {
 });
 
 
-/** 🔍 Vista de un producto individual */
 router.get('/products/:pid', async (req, res) => {
   try {
     const { pid } = req.params;

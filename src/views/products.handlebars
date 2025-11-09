@@ -3,7 +3,6 @@
     Catálogo de Productos
   </h2>
 
-  <!-- 🔍 Filtros -->
   <form
     class="mb-8 flex flex-wrap gap-4 justify-center"
     method="get"
@@ -53,7 +52,6 @@
     </button>
   </form>
 
-  <!-- 🧾 Lista de productos -->
   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
     {{#each products}}
       <div
@@ -76,7 +74,6 @@
     {{/each}}
   </div>
 
-  <!-- 📄 Paginación -->
   <div class="flex justify-center items-center gap-4 mt-8">
     {{#if hasPrevPage}}
       <a
@@ -103,7 +100,6 @@
     try {
       let cartId = localStorage.getItem('cartId');
 
-      // 🆕 Si no hay carrito, crear uno
       if (!cartId) {
         const createResponse = await fetch('/api/carts', {
           method: 'POST',
@@ -124,7 +120,6 @@
         localStorage.setItem('cartId', cartId);
       }
 
-      // ➕ Agregar producto al carrito (NO parseamos JSON)
       const addResponse = await fetch(`/api/carts/${cartId}/products/${productId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

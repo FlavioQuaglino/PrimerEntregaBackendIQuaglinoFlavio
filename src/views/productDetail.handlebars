@@ -32,7 +32,6 @@
     try {
       let cartId = localStorage.getItem('cartId');
 
-      // 🆕 Si no hay carrito, crear uno
       if (!cartId) {
         const createResponse = await fetch('/api/carts', {
           method: 'POST',
@@ -53,7 +52,6 @@
         localStorage.setItem('cartId', cartId);
       }
 
-      // ➕ Agregar producto al carrito (NO parseamos JSON acá)
       const addResponse = await fetch(`/api/carts/${cartId}/products/${productId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

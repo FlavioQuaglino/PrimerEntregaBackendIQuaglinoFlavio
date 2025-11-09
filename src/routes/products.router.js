@@ -1,17 +1,15 @@
-// src/routes/products.router.js
 import { Router } from 'express';
 import productManager from '../managers/ProductManager.js';
 
 const router = Router();
 
-// ✅ GET /api/products
 router.get('/', async (req, res) => {
   try {
     const {
       limit = 10,
       page = 1,
       sort,
-      query, // puede ser categoría o 'available'
+      query, 
     } = req.query;
 
     const queryFilters = {};
@@ -26,12 +24,10 @@ router.get('/', async (req, res) => {
 
     const result = await productManager.getProducts(limit, page, sort, queryFilters);
 
-    // Si el manager ya devolvió status:error, devolvemos igual pero con 500
     if (result.status === 'error') {
       return res.status(500).json(result);
     }
 
-    // 👉 ESTE OBJETO es EXACTAMENTE el formato que te piden
     return res.status(200).json(result);
   } catch (error) {
     console.error('❌ Error en GET /api/products:', error);
@@ -51,7 +47,6 @@ router.get('/', async (req, res) => {
   }
 });
 
-// ✅ GET /api/products/:pid
 router.get('/:pid', async (req, res) => {
   try {
     const { pid } = req.params;
@@ -78,7 +73,6 @@ router.get('/:pid', async (req, res) => {
   }
 });
 
-// ✅ POST /api/products
 router.post('/', async (req, res) => {
   try {
     const newProduct = await productManager.addProduct(req.body);
@@ -97,7 +91,6 @@ router.post('/', async (req, res) => {
   }
 });
 
-// ✅ PUT /api/products/:pid
 router.put('/:pid', async (req, res) => {
   try {
     const { pid } = req.params;
@@ -125,7 +118,6 @@ router.put('/:pid', async (req, res) => {
   }
 });
 
-// ✅ DELETE /api/products/:pid
 router.delete('/:pid', async (req, res) => {
   try {
     const { pid } = req.params;

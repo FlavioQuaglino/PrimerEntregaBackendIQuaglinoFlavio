@@ -3,7 +3,6 @@ import CartManager from '../managers/CartManager.js';
 
 const router = Router();
 
-/** 🛒 Crear un carrito nuevo - POST /api/carts */
 router.post('/', async (req, res) => {
   try {
     const newCart = await CartManager.createCart();
@@ -18,7 +17,6 @@ router.post('/', async (req, res) => {
   }
 });
 
-/** 🔍 Obtener un carrito por ID - GET /api/carts/:cid */
 router.get('/:cid', async (req, res) => {
   try {
     const { cid } = req.params;
@@ -42,7 +40,6 @@ router.get('/:cid', async (req, res) => {
   }
 });
 
-/** ➕ Agregar producto a un carrito - POST /api/carts/:cid/products/:pid */
 router.post('/:cid/products/:pid', async (req, res) => {
   try {
     const { cid, pid } = req.params;
@@ -73,7 +70,6 @@ router.post('/:cid/products/:pid', async (req, res) => {
   }
 });
 
-/** 🔄 Reemplazar TODO el array de productos del carrito - PUT /api/carts/:cid */
 router.put('/:cid', async (req, res) => {
   try {
     const { cid } = req.params;
@@ -110,7 +106,6 @@ router.put('/:cid', async (req, res) => {
   }
 });
 
-/** 🔢 Actualizar SOLO la cantidad de un producto - PUT /api/carts/:cid/products/:pid */
 router.put('/:cid/products/:pid', async (req, res) => {
   try {
     const { cid, pid } = req.params;
@@ -150,7 +145,6 @@ router.put('/:cid/products/:pid', async (req, res) => {
   }
 });
 
-/** 🗑️ Eliminar un producto del carrito - DELETE /api/carts/:cid/products/:pid */
 router.delete('/:cid/products/:pid', async (req, res) => {
   try {
     const { cid, pid } = req.params;
@@ -178,7 +172,6 @@ router.delete('/:cid/products/:pid', async (req, res) => {
   }
 });
 
-/** 🧹 Vaciar carrito completo - DELETE /api/carts/:cid */
 router.delete('/:cid', async (req, res) => {
   try {
     const { cid } = req.params;
